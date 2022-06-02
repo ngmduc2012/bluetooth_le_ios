@@ -10,23 +10,62 @@ import CoreBluetooth
 
 class ViewController: UIViewController, CBPeripheralDelegate, CBCentralManagerDelegate, CBPeripheralManagerDelegate, UITableViewDelegate, UITableViewDataSource {
     
-    // tham khảo: https://www.freecodecamp.org/news/ultimate-how-to-bluetooth-swift-with-hardware-in-20-minutes/
-    
     /**
-         * ################################################################################################
-         * FUNCTION   : Setup status for view
-         * DESCRIPTION:
-         * (1) Checking if the device supports the bluetooth
-         * (2) Checking if the bluetooth is opened
-         * (3) Setup status for showing on UI
-         * ------------------------------------------------------------------------------------------------
-         * CHỨC NĂNG: Cài đặt trạng thái ban đầu
-         * MÔ TẢ    :
-         * (1) Kiểm tra thiết bị có hỗ trợ bluetooth hay không
-         * (2) Kiếm tra thiết bị đang bật hay tắt bluetooth
-         * (3) Cài đặt trạng thái để hiển thị ra giao diện ngoài màn hình.
-         * ################################################################################################
-         */
+     * #####################################################################
+     * OVERVIEW:
+     * (I) CONNECTION TO PEER:
+     * Turn on bluetooth (14) OPEN BLUETOOTH SETTING, discover peer (15) FIND and return results at (2) RESULT SCAN. The peer is showed on screen (11) LIST VIEW. Choose a peer that want to connect. The result of connection in (3) RESULT CONNECTION. Connection is success, set state is connected (state == 2), input message (12) TEXT FIELD & HINT KEYBOARD and sending (9) SEND - WRITE DATA.
+     * (II) AUTO CONNECT TO PEER:
+     * Once the peer connect to iphone (make sure advertising and setup server (13) ADVERTISING for peer's discovery). Iphone can not get status connected of peer, so peer has to send its name to Iphone. After get name (7) READ DATA, the name is 19 string characters after "#" character. Iphone will discover that peer (8) AUTO CONNEC, after get result. If it satisfied condition of auto connect, the peer is connected RESULT SCAN  (2). It take 1, 2 seconds.  
+     *
+     *
+     * DESCRIPTION:
+     * (1) STATE: Application has 3 status: Off bluetooth, On bluetooth, Connected. Status allway updates.
+     * (2) RESULT SCAN: Get message from peer. If case is auto connect [isAutoConnect] = true, connect to peer. Else, add to [devices] for showing on sreen.
+     * (3) RESULT CONNECTION: Get result of connection with peer.
+     * (4) HANDLE BLUETOOTH: Scan UUID server and character of peer.
+     * (5) SERVER: Setup server for the peer's connection and comunication.
+     * (6) DISCONNECT: Get state disconnection of the peer. (No work)
+     * (7) READ DATA: Read message from the peer.
+     * (8) AUTO CONNECT: Handle message. If message contains "#", that means the peer's name after "#". Else, that is a normal message.
+     * (9) SEND - WRITE DATA: Send message to the peer.
+     * (10) PROGESSBAR: Showing loading.
+     * (11) LIST VIEW: Show peers on the screen and manipulate for connection.
+     * (12) TEXT FIELD & HINT KEYBOARD: Input message and hint keyboard of Iphone.
+     * (13) ADVERTISING: On/Off advertising for peer's discovery.
+     * (14) OPEN BLUETOOTH SETTING: Open bluetooth on setting of Iphone.
+     * (15) FIND: Discover peer.
+     *
+     * (NOTE: The peer is builded on Android: https://github.com/ngmduc2012/bluetooth_android.git)
+     * -------------------------------------------------------------------------------------------------------------
+     * TỔNG QUAN:
+     * (I) KẾT NỐI TỚI THIẾT BỊ ĐỐI TÁC:
+     * Bật bluetooth (14) OPEN BLUETOOTH SETTING sau đó tiến hành tìm kiếm (15) FIND, iphone sẽ tìm kiếm các thiết bị đối tác và trả về (2) RESULT SCAN, các thiết bị sẽ được hiển thị ra ngoài màn hình (11) LIST VIEW. Tiến hành lựa chọn thiết bị muốn kết nối. Kết quả kết nối sẽ được trả về tại (3) RESULT CONNECTION. Khi kết nối thành công sẽ hiển thị trạng thái đã kết nối (state == 2), sau đó nhập thông điệp (12) TEXT FIELD & HINT KEYBOARD và gửi đi (9) SEND - WRITE DATA.
+     * (II) TỰ ĐỘNG KẾT NỐI VỚI THIẾT BỊ ĐỐI TÁC:
+     * Khi 1 thiết bị đối tác kết nối tới (chắc chắn đã bật quản bá và thiết lập server (13) ADVERTISING để các thiết bị đối tác tìm thấy iphone). Vì iphone không nhận được trạng thái kết nối của thiết bị đối tác, nên thiết bị đối tác sẽ tiến hành gửi tên của mình cho iphone, sau khi nhận được tên (7) READ DATA sẽ tiến hành kiếm tra thông điệp có chứa ký tự "#" hay không. 19 ký tự đầu của thiết bị sẽ sẽ ở phí sau ký tự "#" iphone sẽ tìm kiếm và kết nối với thiết bị đó (8) AUTO CONNECT, kết quả thỏa mãn thì thiết bị sẽ được kết nối ngay RESULT SCAN  (2).
+     *
+     * MÔ TẢ    :
+     * (1) STATE: Ứng dụng có 3 trạng thái là chưa mở bluetooth, đã bật bluetooth và đã kết nối. Trạng thái sẽ luôn được cập nhập trong quá trình sử dụng.
+     * (2) RESULT SCAN: Nhận kết quả từ thiết bị đối tác. Nếu là trường hợp tự động kết nối [isAutoConnect] = true thì tiến hành kết nối với thiết bị, nếu không sẽ thêm vào [deviecs] để hiển thị ra ngoài màn hình.
+     * (3) RESULT CONNECTION: Nhận kết quả xác nhận đã kết nối với thiết bị đối tác.
+     * (4) HANDLE BLUETOOTH: Phát hiện UUID server và UUID để truyền character của thiết bị đối tác.
+     * (5) SERVER: Thiết lập server để các thiết bị khác kết nối và giao tiếp.
+     * (6) DISCONNECT: Phát hiện trạng thái ngắt kết nối với thiết bị đối tác (Không hoạt động)
+     * (7) READ DATA: Đọc dữ liệu nhận từ thiết bị đối tác.
+     * (8) AUTO CONNECT: Xử lí dữ liệu. Nếu trong dữ liệu có chứa ký tự "#" thì tên của thiết bị cần kết nối ở ngay sau đó. Nếu không thì đó là 1 thông điệp thông thường và in ra màn hình.
+     * (9) SEND - WRITE DATA: Gửi thông điệp đến thiết bị đối tác.
+     * (10) PROGESSBAR: Hiển thị loading.
+     * (11) LIST VIEW: Hiển thị danh sách các thiết bị ra ngoài màn hình và cho phép thao tác chọn để kết nối.
+     * (12) TEXT FIELD & HINT KEYBOARD: Nhập thông điệp và ẩn bàn phím của iphone
+     * (13) ADVERTISING: Tắt và mở quản bá giúp các thiết bị đối tác phát hiện ra.
+     * (14) OPEN BLUETOOTH SETTING: Mở bluetooth trong cài đặt của iphone.
+     * (15) FIND: Tìm kiếm các thiết bị đối tác.
+     *
+     * (NOTE: Thiết bị đối tác sử dụng android: https://github.com/ngmduc2012/bluetooth_android.git)
+     * ######################################################################
+     * THE FOLLOWING:
+     * https://www.freecodecamp.org/news/ultimate-how-to-bluetooth-swift-with-hardware-in-20-minutes/
+     */
 
 
     // Properties
@@ -35,7 +74,7 @@ class ViewController: UIViewController, CBPeripheralDelegate, CBCentralManagerDe
     var peripheralManager: CBPeripheralManager!
     
     /**
-           STATE
+           STATE (1)
      */
     func peripheralManagerDidUpdateState(_ peripheral: CBPeripheralManager) {
 //        print("ok: " , peripheral.autoContentAccessingProxy)
@@ -112,7 +151,7 @@ class ViewController: UIViewController, CBPeripheralDelegate, CBCentralManagerDe
     }
     
     /**
-     RESULT SCAN
+     RESULT SCAN  (2)
      */
     // Handles the result of the scan
     func centralManager(_ central: CBCentralManager, didDiscover peripheral: CBPeripheral, advertisementData: [String : Any], rssi RSSI: NSNumber) {
@@ -138,7 +177,7 @@ class ViewController: UIViewController, CBPeripheralDelegate, CBCentralManagerDe
     }
     
     /**
-     RESULT CONNECTION
+     RESULT CONNECTION  (3)
      */
     // The handler if we do connect succesfully
     func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral) {
@@ -152,7 +191,7 @@ class ViewController: UIViewController, CBPeripheralDelegate, CBCentralManagerDe
 
     
     /**
-     HANDLE BLUETOOTH
+     HANDLE BLUETOOTH  (4)
      */
     // Handles discovery event
     func peripheral(_ peripheral: CBPeripheral, didDiscoverServices error: Error?) {
@@ -208,7 +247,7 @@ class ViewController: UIViewController, CBPeripheralDelegate, CBCentralManagerDe
    
     
     /*
-     * SERVER
+     * SERVER  (5)
      */
     // Tạo Server để kết nối với android : https://developer.apple.com/documentation/corebluetooth/transferring_data_between_bluetooth_low_energy_devices
     private func setupPeripheral() {
@@ -232,7 +271,7 @@ class ViewController: UIViewController, CBPeripheralDelegate, CBCentralManagerDe
 
     
     /*
-     * DISCONNECT
+     * DISCONNECT (6)
      * This callback comes in when the PeripheralManager received write to characteristics
      */
     func centralManager(_ central: CBCentralManager, didDisconnectPeripheral peripheral: CBPeripheral, error: Error?) {
@@ -241,16 +280,16 @@ class ViewController: UIViewController, CBPeripheralDelegate, CBCentralManagerDe
             notify.text = "Disconnected"
                     self.peripheral = nil
                     // Start scanning again
-                    print("Central scanning for", ParticlePeripheral.serviceUUID);
-                    centralManager.scanForPeripherals(withServices: [ParticlePeripheral.serviceUUID],
-                                                      options: [CBCentralManagerScanOptionAllowDuplicatesKey : true])
+//                    print("Central scanning for", ParticlePeripheral.serviceUUID);
+//                    centralManager.scanForPeripherals(withServices: [ParticlePeripheral.serviceUUID],
+//                                                      options: [CBCentralManagerScanOptionAllowDuplicatesKey : true])
       }
     }
     
     
     
     /*
-     * READ DATA
+     * READ DATA (7)
      * This callback comes in when the PeripheralManager received write to characteristics
      */
     func peripheralManager(_ peripheral: CBPeripheralManager, didReceiveWrite requests: [CBATTRequest]) {
@@ -265,7 +304,7 @@ class ViewController: UIViewController, CBPeripheralDelegate, CBCentralManagerDe
     }
     
     /*
-     * AUTU CONNECT
+     * AUTO CONNECT (8)
      */
     // Cắt chuỗi string: https://stackoverflow.com/a/25678505/10621168
     // Xử lý chuỗi string: https://stackoverflow.com/a/24161872/10621168
@@ -299,7 +338,7 @@ class ViewController: UIViewController, CBPeripheralDelegate, CBCentralManagerDe
     
     
     /**
-     SEND - WRITE DATA
+     SEND - WRITE DATA (9)
      */
     @IBOutlet weak var b_send: UIButton!
     @IBAction func send(_ sender: Any) {
@@ -321,7 +360,7 @@ class ViewController: UIViewController, CBPeripheralDelegate, CBCentralManagerDe
     }
 
     /**
-     PROGESSBAR
+     PROGESSBAR (10)
      */
     // The following progess: https://www.raywenderlich.com/25358187-spinner-and-progress-bar-in-swift-getting-started
     @IBOutlet weak var activityIndicator: UIActivityIndicatorView!
@@ -335,7 +374,7 @@ class ViewController: UIViewController, CBPeripheralDelegate, CBCentralManagerDe
     }
 
     /**
-     LIST VIEW
+     LIST VIEW (11)
      */
     @IBOutlet weak var tableView: UITableView!
     var deviecs: [CBPeripheral] = []
@@ -360,7 +399,7 @@ class ViewController: UIViewController, CBPeripheralDelegate, CBCentralManagerDe
 
   
     /**
-     TEXT FIELD & HINT KEYBOARD
+     TEXT FIELD & HINT KEYBOARD (12)
      */
     // Ẩn bàn phím trên iphone: https://stackoverflow.com/a/26582115/10621168
     @IBOutlet weak var b_hint: UIButton!
@@ -375,7 +414,7 @@ class ViewController: UIViewController, CBPeripheralDelegate, CBCentralManagerDe
     
     
     /**
-     ADVERTISING
+     ADVERTISING (13)
      */
     @IBOutlet weak var l_advertising: UILabel!
     @IBOutlet weak var advertising: UISwitch!
@@ -393,7 +432,7 @@ class ViewController: UIViewController, CBPeripheralDelegate, CBCentralManagerDe
     
     
     /**
-     OPEN BLUETOOTH SETTING
+     OPEN BLUETOOTH SETTING (14)
      */
     @IBAction func open_blue(_ sender: Any) {openBlue()}
     @IBOutlet weak var b_open_blue: UIButton!
@@ -405,7 +444,7 @@ class ViewController: UIViewController, CBPeripheralDelegate, CBCentralManagerDe
     
     
     /**
-     FIND
+     FIND (15)
      */
     @IBAction func find(_ sender: Any) {find()}
     @IBOutlet weak var b_find: UIButton!
@@ -419,6 +458,9 @@ class ViewController: UIViewController, CBPeripheralDelegate, CBCentralManagerDe
                                                       options: [CBCentralManagerScanOptionAllowDuplicatesKey : true])
     }
     
+    /**
+     OVERRIDE
+     */
     override func viewDidLoad() {
         peripheralManager = CBPeripheralManager(delegate: self, queue: nil, options: [CBPeripheralManagerOptionShowPowerAlertKey: true])
         super.viewDidLoad()
